@@ -1,0 +1,37 @@
+name: Generate waveforms
+
+# Runs hourly, generates peaks for any NEW listen-back show and uploads the
+# JSON to the web host. Idempotent — shows that already have a waveform are
+# skipped, so a typical run finishes in ~1 minute and uses almost no quota.
+
+on:
+  schedule:
+    - cron: '17 * * * *'   # hourly at :17 (off the top of the hour = less delay)
+  workflow_dispatch: {}     # adds a manual "Run workflow" button for testing
+
+concurrency:
+  group: waveforms
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install audiowaveform + lftp
+        run: |
+          sudo add-apt-repository -y ppa:chris-needham/ppa
+          sudo apt-get update
+          sudo apt-get install -y audiowaveform lftp
+
+      - name: Generate & upload new waveforms
+        env:
+          SITE_BASE:      ${{ vars.SITE_BASE }}
+          FTP_PROTOCOL:   ${{ vars.FTP_PROTOCOL }}
+          FTP_SSL:        ${{ vars.FTP_SSL }}
+          FTP_HOST:       ${{ secrets.FTP_HOST }}
+          FTP_USER:       ${{ secrets.FTP_USER }}
+          FTP_PASS:       ${{ secrets.FTP_PASS }}
+          FTP_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
+        run: bash scripts/generate_waveforms_ci.sh
