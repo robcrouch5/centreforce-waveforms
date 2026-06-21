@@ -6,7 +6,7 @@ name: Generate waveforms
 
 on:
   schedule:
-    - cron: '17 * * * *'   # hourly at :17 (off the top of the hour = less delay)
+    - cron: '17,47 * * * *'   # every 30 min (:17 and :47 — off the hour = less delay)
   workflow_dispatch: {}     # adds a manual "Run workflow" button for testing
 
 concurrency:
