@@ -6,7 +6,7 @@ name: Generate waveforms
 
 on:
   schedule:
-    - cron: '17,47 * * * *'   # every 30 min (:17 and :47 — off the hour = less delay)
+    - cron: '5,20,35,50 * * * *'   # 4×/hour (every 15 min, offset off the congested quarters)
   workflow_dispatch: {}     # adds a manual "Run workflow" button for testing
 
 concurrency:
@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo add-apt-repository -y ppa:chris-needham/ppa
           sudo apt-get update
-          sudo apt-get install -y audiowaveform lftp
+          sudo apt-get install -y audiowaveform lftp sshpass
 
       - name: Generate & upload new waveforms
         env:
