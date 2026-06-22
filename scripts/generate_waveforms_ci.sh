@@ -1,155 +1,95 @@
-<?php
-/*
- * admin/import_friends.php — ONE-TIME importer.
- * Crawls the old centreforceradio.com "Friends" listing + every detail page and
- * imports each friend (name, logo, website, description, address, phone) into the
- * `friends` table, downloading logos into admin/uploads/friends/. Idempotent:
- * re-running skips friends already imported (matched by name).
- *
- * USAGE: set $ENABLE_IMPORT = true, load the page (it may take ~1 min for 54
- * pages), then DELETE this file.
- */
+#!/usr/bin/env bash
+#
+# Generate Centreforce show waveforms in CI and upload them to the web host.
+#
+# Stateless + idempotent: for every listen-back recording it HEAD-checks whether
+# the peaks JSON already exists on the site, and only generates/uploads new ones.
+#
+# Required env (GitHub Secrets/Variables — see docs/waveforms-github-action.md):
+#   FTP_HOST, FTP_USER, FTP_PASS, FTP_REMOTE_DIR  (secrets)
+# Optional:
+#   SITE_BASE     defaults to the current live site
+#   FTP_PROTOCOL  sftp (default here) | ftp | ftps
+#   FTP_PORT      defaults to 22 (sftp) — set if your host uses another
+#   FTP_SSL       true|false  (ftps only)
 
-$ENABLE_IMPORT = true;   // <-- set true to run, then delete this file
-@set_time_limit(300);
+set -uo pipefail
 
-require 'config.php';                       // $pdo
-if (session_status() === PHP_SESSION_NONE) session_start();
-if (!isset($_SESSION['admin_logged_in'])) { header('Location: login.php'); exit; }
+SITE_BASE="${SITE_BASE:-https://robcrouch.com/portableradio}"
+FTP_PROTOCOL="${FTP_PROTOCOL:-sftp}"
+FTP_PORT="${FTP_PORT:-22}"
+: "${FTP_HOST:?Set FTP_HOST}"
+: "${FTP_USER:?Set FTP_USER}"
+: "${FTP_PASS:?Set FTP_PASS}"
+: "${FTP_REMOTE_DIR:?Set FTP_REMOTE_DIR}"
 
-if (!$ENABLE_IMPORT) {
-    http_response_code(403);
-    exit('Importer disabled. Edit import_friends.php and set $ENABLE_IMPORT = true to run it, then delete the file.');
+# Clean the host: strip any scheme, any path, and all whitespace/newlines.
+HOST="$(printf '%s' "$FTP_HOST" | tr -d '[:space:]' | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#/.*$##')"
+echo "Upload target  raw=[$FTP_HOST]  cleaned=[$HOST]  protocol=$FTP_PROTOCOL  port=$FTP_PORT"
+if getent hosts "$HOST" >/dev/null 2>&1; then echo "DNS: $HOST resolves OK"; else echo "DNS: WARNING — could not resolve [$HOST]"; fi
+
+API="${SITE_BASE%/}/api/listen-back.php?limit=500"
+WAVE_BASE="${SITE_BASE%/}/waveforms"
+
+urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
+
+upload() { # $1 = local file, $2 = remote filename
+  if [ "$FTP_PROTOCOL" = "sftp" ]; then
+    local batch="/tmp/sftp_batch"
+    printf 'cd "%s"\nput "%s" "%s"\n' "$FTP_REMOTE_DIR" "$1" "$2" > "$batch"
+    sshpass -p "$FTP_PASS" sftp -P "$FTP_PORT" \
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+      -b "$batch" "$FTP_USER@$HOST"
+  else
+    lftp -u "$FTP_USER,$FTP_PASS" "$FTP_PROTOCOL://$HOST" <<EOF
+set net:timeout 30
+set net:max-retries 2
+set ftp:ssl-allow ${FTP_SSL:-false}
+set ssl:verify-certificate no
+mkdir -f -p "$FTP_REMOTE_DIR"
+cd "$FTP_REMOTE_DIR"
+put "$1" -o "$2"
+bye
+EOF
+  fi
 }
 
-$LISTING = 'https://www.centreforceradio.com/friends/';
-$dir = 'uploads/friends/';
-if (!is_dir($dir)) @mkdir($dir, 0775, true);
+echo "Fetching recordings: $API"
+# Browser-like UA + Accept header so the host's WAF/bot filter doesn't reject us
+# with a 415, plus retries so an occasional challenge self-heals.
+curl -fsS --retry 5 --retry-delay 4 --retry-all-errors \
+  -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" \
+  -H "Accept: application/json" \
+  "$API" -o /tmp/lb.json || { echo "❌ API fetch failed"; exit 1; }
 
-function fetch_url($url) {
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_TIMEOUT => 20, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'Mozilla/5.0']);
-        $data = curl_exec($ch);
-        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return ($data !== false && $code === 200) ? $data : false;
-    }
-    return @file_get_contents($url);
-}
+mapfile -t URLS < <(grep -oE '"recording_link":"[^"]+"' /tmp/lb.json \
+  | sed 's/^"recording_link":"//; s/"$//; s#\\/#/#g' | sort -u)
 
-/* ---- 1. Collect detail-page URLs from the listing ---- */
-$listingHtml = fetch_url($LISTING);
-$detailUrls = [];
-if ($listingHtml && preg_match_all('~href="(https://www\.centreforceradio\.com/friends/[^"#/]+/)"~', $listingHtml, $m)) {
-    $detailUrls = array_values(array_unique($m[1]));
-}
+total=${#URLS[@]}
+echo "Found $total recordings"
+gen=0; skip=0; fail=0; i=0
 
-// Which friends are "Station Partners" (vs Sponsors) — split by the listing headings.
-$partnerUrls = [];
-$pp = $listingHtml ? stripos($listingHtml, 'Station Partners') : false;
-$sp = $listingHtml ? stripos($listingHtml, 'Station Sponsors') : false;
-if ($pp !== false && $sp !== false && $sp > $pp) {
-    if (preg_match_all('~href="(https://www\.centreforceradio\.com/friends/[^"#/]+/)"~', substr($listingHtml, $pp, $sp - $pp), $pm)) {
-        $partnerUrls = array_flip(array_unique($pm[1]));
-    }
-}
+for url in "${URLS[@]}"; do
+  i=$((i+1))
+  enc="${url##*/}"
+  name="$(urldecode "$enc")"
+  code=$(curl -s -o /dev/null -w '%{http_code}' -I "$WAVE_BASE/$enc.json")
+  if [ "$code" = "200" ]; then skip=$((skip+1)); continue; fi
+  echo "[$i/$total] generating: $name"
+  if ! curl -fsSL --retry 4 --retry-delay 3 --retry-all-errors -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" "$url" -o /tmp/cf.mp3; then
+    echo "  ❌ download failed"; fail=$((fail+1)); continue
+  fi
+  if ! audiowaveform -i /tmp/cf.mp3 -o "/tmp/$name.json" --pixels-per-second 8 -b 8 >/dev/null 2>&1; then
+    echo "  ❌ audiowaveform failed"; fail=$((fail+1)); rm -f /tmp/cf.mp3; continue
+  fi
+  rm -f /tmp/cf.mp3
+  if upload "/tmp/$name.json" "$name.json"; then
+    echo "  ✅ uploaded"; gen=$((gen+1))
+  else
+    echo "  ❌ upload failed"; fail=$((fail+1))
+  fi
+  rm -f "/tmp/$name.json"
+done
 
-/* ---- helpers ---- */
-$CHROME_IMG = '~(CFMainlogo|cropped-883|Social-Share|883-v2|sload)~i';
-$CHROME_DOM = '~(centreforceradio|assets\.player\.radio|gmpg\.org|w3\.org|schema\.org|google|facebook|sowebdesigns|kick\.com|gravatar|wordpress|googletagmanager|fonts\.|radioplayer)~i';
-
-function clean_text($s) {
-    return trim(html_entity_decode(strip_tags($s), ENT_QUOTES, 'UTF-8'));
-}
-
-$done = []; $failed = [];
-$sort = (int) ($pdo->query("SELECT COALESCE(MAX(sort_order),0) FROM friends")->fetchColumn());
-$check = $pdo->prepare("SELECT id FROM friends WHERE name = ?");
-
-foreach ($detailUrls as $url) {
-    $html = fetch_url($url);
-    if (!$html) { $failed[] = $url; continue; }
-
-    // Name from og:title (strip the site suffix).
-    $name = '';
-    if (preg_match('~<meta property="og:title" content="([^"]+)"~', $html, $mt)) {
-        $name = clean_text($mt[1]);
-        $name = preg_replace('~\s*[-–]\s*Centreforce Radio.*$~i', '', $name);
-    }
-    if ($name === '') { $failed[] = $url; continue; }
-
-    $category = isset($partnerUrls[$url]) ? 'partner' : 'sponsor';
-
-    $check->execute([$name]);
-    $existingId = $check->fetchColumn();
-    if ($existingId) {
-        // Already imported — just ensure the category is correct, don't re-download.
-        $pdo->prepare("UPDATE friends SET category=? WHERE id=?")->execute([$category, (int) $existingId]);
-        continue;
-    }
-
-    // Logo: first uploads image that isn't site chrome (use full-size).
-    $logoUrl = '';
-    if (preg_match_all('~https://www\.centreforceradio\.com/wp-content/uploads/[^"\' )]+\.(?:png|jpe?g|webp)~i', $html, $mi)) {
-        foreach ($mi[0] as $img) {
-            if (preg_match($CHROME_IMG, $img)) continue;
-            $logoUrl = preg_replace('~-\d+x\d+(\.(?:png|jpe?g|webp))$~i', '$1', $img); // full-size
-            break;
-        }
-    }
-
-    // Website: first external link that isn't site chrome.
-    $website = '';
-    if (preg_match_all('~href="(https?://[^"]+)"~', $html, $ml)) {
-        foreach ($ml[1] as $href) {
-            if (!preg_match($CHROME_DOM, $href)) { $website = $href; break; }
-        }
-    }
-
-    // Text-only <p> blocks = description paragraphs + (address) + (phone), in order.
-    $paras = [];
-    if (preg_match_all('~<p>([^<]{4,})</p>~', $html, $mp)) {
-        foreach ($mp[1] as $p) { $paras[] = clean_text($p); }
-    }
-    $phone = ''; $address = '';
-    // phone = a paragraph that's mostly digits / phone punctuation
-    foreach ($paras as $k => $p) {
-        if (preg_match('~^[\d \-\+\(\)]{9,18}$~', $p)) { $phone = $p; unset($paras[$k]); break; }
-    }
-    // address = a paragraph containing a UK postcode
-    foreach ($paras as $k => $p) {
-        if (preg_match('~[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}~i', $p)) { $address = $p; unset($paras[$k]); break; }
-    }
-    $description = trim(implode("\n\n", array_values($paras)));
-
-    // Download logo.
-    $fname = preg_replace('/[^a-z0-9]+/', '-', strtolower($name)) . '.jpg';
-    if ($logoUrl) {
-        $img = fetch_url($logoUrl);
-        if ($img !== false && strlen($img) > 200) { @file_put_contents($dir . $fname, $img); }
-        else { $fname = ''; }
-    } else { $fname = ''; }
-
-    $sort++;
-    $pdo->prepare("INSERT INTO friends (name, image, link_url, description, address, phone, category, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)")
-        ->execute([$name, $fname, $website, $description, $address, $phone, $category, $sort]);
-    $done[] = $name;
-}
-
-function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-?>
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Import Friends</title>
-<link rel="stylesheet" href="assets/style.css"></head>
-<body class="admin-auth-page">
-<div class="login-box" style="max-width:620px;text-align:left">
-  <h2>Friends import complete</h2>
-  <p style="color:#6ef6d4">Detail pages found: <?= count($detailUrls) ?> · Imported: <?= count($done) ?> · Failed: <?= count($failed) ?></p>
-  <?php if ($done): ?><p style="color:#cfd8e0;font-size:13px;line-height:1.6"><strong>Added:</strong> <?= h(implode(', ', $done)) ?></p><?php endif; ?>
-  <?php if ($failed): ?><p style="color:#ffc9c9;font-size:12px;line-height:1.6"><strong>Failed:</strong> <?= h(implode('  ', $failed)) ?></p><?php endif; ?>
-  <ol style="color:#cfd8e0;font-size:14px;line-height:1.7">
-    <li>Review descriptions / logos / links in <a href="manage_friends.php" style="color:#00cae7">Manage Friends</a> (the scrape is best-effort — tidy any stragglers).</li>
-    <li><strong>Delete this file (admin/import_friends.php)</strong>.</li>
-  </ol>
-</div>
-</body></html>
+echo "Done: generated=$gen skipped=$skip failed=$fail (of $total)"
+[ "$fail" -gt 0 ] && exit 1 || exit 0
