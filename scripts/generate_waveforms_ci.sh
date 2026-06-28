@@ -34,14 +34,11 @@ WAVE_BASE="${SITE_BASE%/}/waveforms"
 urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
 
 upload() { # $1 = local file, $2 = remote filename
-  if [ "$FTP_PROTOCOL" = "sftp" ]; then
-    local batch="/tmp/sftp_batch"
-    printf 'cd "%s"\nput "%s" "%s"\n' "$FTP_REMOTE_DIR" "$1" "$2" > "$batch"
-    sshpass -p "$FTP_PASS" sftp -P "$FTP_PORT" \
-      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-      -b "$batch" "$FTP_USER@$HOST"
-  else
-    lftp -u "$FTP_USER,$FTP_PASS" "$FTP_PROTOCOL://$HOST" <<EOF
+  # Use lftp for EVERY protocol (incl. sftp). lftp does password auth reliably —
+  # exactly like the working deploy.sh — whereas sshpass+sftp was failing on the
+  # CI runner with "Permission denied (publickey,password)".
+  lftp -u "$FTP_USER,$FTP_PASS" "$FTP_PROTOCOL://$HOST:$FTP_PORT" <<EOF
+set sftp:auto-confirm yes
 set net:timeout 30
 set net:max-retries 2
 set ftp:ssl-allow ${FTP_SSL:-false}
@@ -51,7 +48,6 @@ cd "$FTP_REMOTE_DIR"
 put "$1" -o "$2"
 bye
 EOF
-  fi
 }
 
 echo "Fetching recordings: $API"
@@ -92,4 +88,12 @@ for url in "${URLS[@]}"; do
 done
 
 echo "Done: generated=$gen skipped=$skip failed=$fail (of $total)"
-[ "$fail" -gt 0 ] && exit 1 || exit 0
+# A few unreadable / missing / odd-named recordings must NOT fail the whole
+# scheduled, idempotent run. But if we generated NOTHING and something failed,
+# that's systemic (e.g. uploads broken) — surface it.
+if [ "$gen" -eq 0 ] && [ "$fail" -gt 0 ]; then
+  echo "❌ Generated nothing and $fail failed — systemic problem (upload / host / API)."
+  exit 1
+fi
+echo "✅ Run completed (any per-file failures will retry next run)."
+exit 0
