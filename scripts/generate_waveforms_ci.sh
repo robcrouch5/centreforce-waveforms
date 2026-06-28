@@ -28,7 +28,7 @@ HOST="$(printf '%s' "$FTP_HOST" | tr -d '[:space:]' | sed -E 's#^[a-zA-Z][a-zA-Z
 echo "Upload target  raw=[$FTP_HOST]  cleaned=[$HOST]  protocol=$FTP_PROTOCOL  port=$FTP_PORT"
 if getent hosts "$HOST" >/dev/null 2>&1; then echo "DNS: $HOST resolves OK"; else echo "DNS: WARNING — could not resolve [$HOST]"; fi
 
-API="${SITE_BASE%/}/api/listen-back.php?limit=500"
+API_BASE="${SITE_BASE%/}/api/listen-back.php"
 WAVE_BASE="${SITE_BASE%/}/waveforms"
 
 urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
@@ -50,16 +50,29 @@ bye
 EOF
 }
 
-echo "Fetching recordings: $API"
+# The API caps each response at 200 rows (newest first) but supports offset
+# pagination — so page through ALL recordings, not just the first 200.
 # Browser-like UA + Accept header so the host's WAF/bot filter doesn't reject us
 # with a 415, plus retries so an occasional challenge self-heals.
-curl -fsS --retry 5 --retry-delay 4 --retry-all-errors \
-  -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" \
-  -H "Accept: application/json" \
-  "$API" -o /tmp/lb.json || { echo "❌ API fetch failed"; exit 1; }
+echo "Fetching recordings (paginated) from: $API_BASE"
+: > /tmp/links.txt
+off=0; page=200
+while :; do
+  if ! curl -fsS --retry 5 --retry-delay 4 --retry-all-errors \
+        -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" \
+        -H "Accept: application/json" \
+        "$API_BASE?limit=$page&offset=$off" -o /tmp/lb.json; then
+    echo "❌ API fetch failed at offset $off"; exit 1
+  fi
+  n=$(grep -oE '"recording_link":"[^"]+"' /tmp/lb.json | wc -l | tr -d ' ')
+  grep -oE '"recording_link":"[^"]+"' /tmp/lb.json \
+    | sed 's/^"recording_link":"//; s/"$//; s#\\/#/#g' >> /tmp/links.txt
+  echo "  fetched $n at offset $off"
+  [ "$n" -lt "$page" ] && break
+  off=$((off + page))
+done
 
-mapfile -t URLS < <(grep -oE '"recording_link":"[^"]+"' /tmp/lb.json \
-  | sed 's/^"recording_link":"//; s/"$//; s#\\/#/#g' | sort -u)
+mapfile -t URLS < <(sort -u /tmp/links.txt)
 
 total=${#URLS[@]}
 echo "Found $total recordings"
