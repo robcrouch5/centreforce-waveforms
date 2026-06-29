@@ -54,23 +54,33 @@ EOF
 # pagination — so page through ALL recordings, not just the first 200.
 # Browser-like UA + Accept header so the host's WAF/bot filter doesn't reject us
 # with a 415, plus retries so an occasional challenge self-heals.
-echo "Fetching recordings (paginated) from: $API_BASE"
+UA="Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)"
+RECENT="${WAVE_RECENT:-50}"
 : > /tmp/links.txt
-off=0; page=200
-while :; do
-  if ! curl -fsS --retry 5 --retry-delay 4 --retry-all-errors \
-        -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" \
-        -H "Accept: application/json" \
-        "$API_BASE?limit=$page&offset=$off" -o /tmp/lb.json; then
-    echo "❌ API fetch failed at offset $off"; exit 1
-  fi
-  n=$(grep -oE '"recording_link":"[^"]+"' /tmp/lb.json | wc -l | tr -d ' ')
-  grep -oE '"recording_link":"[^"]+"' /tmp/lb.json \
-    | sed 's/^"recording_link":"//; s/"$//; s#\\/#/#g' >> /tmp/links.txt
-  echo "  fetched $n at offset $off"
-  [ "$n" -lt "$page" ] && break
-  off=$((off + page))
-done
+extract() { grep -oE '"recording_link":"[^"]+"' /tmp/lb.json | sed 's/^"recording_link":"//; s/"$//; s#\\/#/#g'; }
+
+if [ -n "${WAVE_FULL:-}" ]; then
+  # One-off full sweep: page through EVERY recording (use when seeding the backlog).
+  echo "FULL sweep — paginating all recordings from: $API_BASE"
+  off=0
+  while :; do
+    curl -fsS --retry 5 --retry-delay 4 --retry-all-errors -A "$UA" -H "Accept: application/json" \
+      "$API_BASE?limit=200&offset=$off" -o /tmp/lb.json || { echo "❌ API fetch failed at offset $off"; exit 1; }
+    n=$(extract | tee -a /tmp/links.txt | wc -l | tr -d ' ')
+    echo "  fetched $n at offset $off"
+    [ "$n" -lt 200 ] && break
+    off=$((off + 200))
+  done
+else
+  # Normal run: only the most recent recordings (backlog is already generated),
+  # so new waveforms go live within a single run. Tune with WAVE_RECENT=N, or
+  # do a complete re-scan with WAVE_FULL=1.
+  echo "Checking the $RECENT most recent recordings from: $API_BASE  (set WAVE_FULL=1 for a full sweep)"
+  curl -fsS --retry 5 --retry-delay 4 --retry-all-errors -A "$UA" -H "Accept: application/json" \
+    "$API_BASE?limit=$RECENT&offset=0" -o /tmp/lb.json || { echo "❌ API fetch failed"; exit 1; }
+  extract >> /tmp/links.txt
+  echo "  fetched $(wc -l < /tmp/links.txt | tr -d ' ')"
+fi
 
 mapfile -t URLS < <(sort -u /tmp/links.txt)
 
@@ -82,7 +92,7 @@ for url in "${URLS[@]}"; do
   i=$((i+1))
   enc="${url##*/}"
   name="$(urldecode "$enc")"
-  code=$(curl -s -o /dev/null -w '%{http_code}' -I "$WAVE_BASE/$enc.json")
+  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -I "$WAVE_BASE/$enc.json")
   if [ "$code" = "200" ]; then skip=$((skip+1)); continue; fi
   echo "[$i/$total] generating: $name"
   if ! curl -fsSL --retry 4 --retry-delay 3 --retry-all-errors -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" "$url" -o /tmp/cf.mp3; then
