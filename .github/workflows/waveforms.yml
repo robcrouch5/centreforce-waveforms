@@ -1,12 +1,17 @@
 name: Generate waveforms
 
-# Runs hourly, generates peaks for any NEW listen-back show and uploads the
-# JSON to the web host. Idempotent — shows that already have a waveform are
-# skipped, so a typical run finishes in ~1 minute and uses almost no quota.
+# Generates peaks for any NEW listen-back show and uploads the JSON to the web
+# host. Idempotent — shows that already have a waveform are skipped.
 
 on:
+  # Primary trigger: cron_listenback.php fires a repository_dispatch the instant a
+  # new show is imported into listen_back, so waveforms appear within ~1-2 min
+  # instead of waiting on GitHub's (heavily throttled, unreliable) scheduler.
+  repository_dispatch:
+    types: [new-listenback]
+  # Backstop only — catches anything the dispatch missed (e.g. token/network down).
   schedule:
-    - cron: '5,20,35,50 * * * *'   # 4×/hour (every 15 min, offset off the congested quarters)
+    - cron: '5,20,35,50 * * * *'   # 4×/hour safety net
   workflow_dispatch: {}     # adds a manual "Run workflow" button for testing
 
 concurrency:
