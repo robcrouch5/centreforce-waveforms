@@ -1,7 +1,8 @@
 name: Generate waveforms
 
-# Generates peaks for any NEW listen-back show and uploads the JSON to the web
-# host. Idempotent — shows that already have a waveform are skipped.
+# Runs hourly, generates peaks for any NEW listen-back show and uploads the
+# JSON to the web host. Idempotent — shows that already have a waveform are
+# skipped, so a typical run finishes in ~1 minute and uses almost no quota.
 
 on:
   # Primary trigger: cron_listenback.php fires a repository_dispatch the instant a
@@ -9,10 +10,11 @@ on:
   # instead of waiting on GitHub's (heavily throttled, unreliable) scheduler.
   repository_dispatch:
     types: [new-listenback]
-  # Backstop only — catches anything the dispatch missed (e.g. token/network down).
+  # Backstop only — catches anything the dispatch missed (e.g. cron ran while the
+  # token/network was down). Kept as a safety net since it's no longer the main path.
   schedule:
-    - cron: '5,20,35,50 * * * *'   # 4×/hour safety net
-  workflow_dispatch: {}     # adds a manual "Run workflow" button for testing
+    - cron: '5,20,35,50 * * * *'   # 4×/hour safety net (matches the live centreforce-waveforms repo)
+  workflow_dispatch: {}       # adds a manual "Run workflow" button for testing
 
 concurrency:
   group: waveforms
@@ -34,6 +36,7 @@ jobs:
         env:
           SITE_BASE:      ${{ vars.SITE_BASE }}
           FTP_PROTOCOL:   ${{ vars.FTP_PROTOCOL }}
+          FTP_PORT:       ${{ vars.FTP_PORT }}
           FTP_SSL:        ${{ vars.FTP_SSL }}
           FTP_HOST:       ${{ secrets.FTP_HOST }}
           FTP_USER:       ${{ secrets.FTP_USER }}
