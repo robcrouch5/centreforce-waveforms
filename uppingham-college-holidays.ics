@@ -1,96 +1,96 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//UCC Term Dates//Holidays//EN
+PRODID:-//UCC Term Dates//Jess Holidays//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-CALNAME:School Holidays (UCC)
-X-WR-CALDESC:When school is off - Uppingham College term breaks
+X-WR-CALNAME:Jess – School Holidays (UCC)
+X-WR-CALDESC:When Jess is off school - Uppingham College term breaks
 BEGIN:VEVENT
 UID:ucc-holiday-2026-oct-halfterm@termdates
-SUMMARY:🏖️ Off school – October Half Term
+SUMMARY:🏖️ Jess off school – October Half Term
 DTSTART;VALUE=DATE:20261017
 DTEND;VALUE=DATE:20261102
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 1. Back Mon 2 Nov 2026.
+DESCRIPTION:Term 1 ends Fri 16 Oct 2026. Jess is off for 16 days (2 weeks). Back Mon 2 Nov 2026 (start of Term 2).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2026-christmas@termdates
-SUMMARY:🏖️ Off school – Christmas Holidays
+SUMMARY:🎄 Jess off school – Christmas Holidays
 DTSTART;VALUE=DATE:20261219
 DTEND;VALUE=DATE:20270104
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 2. Back Mon 4 Jan 2027.
+DESCRIPTION:Term 2 ends Fri 18 Dec 2026. Jess is off for 16 days. Back Mon 4 Jan 2027 (start of Term 3).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2027-feb-halfterm@termdates
-SUMMARY:🏖️ Off school – February Half Term
+SUMMARY:🏖️ Jess off school – February Half Term
 DTSTART;VALUE=DATE:20270213
 DTEND;VALUE=DATE:20270222
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 3. Back Mon 22 Feb 2027.
+DESCRIPTION:Term 3 ends Fri 12 Feb 2027. Jess is off for 9 days. Back Mon 22 Feb 2027 (start of Term 4).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2027-easter@termdates
-SUMMARY:🏖️ Off school – Easter Holidays
+SUMMARY:🐣 Jess off school – Easter Holidays
 DTSTART;VALUE=DATE:20270326
 DTEND;VALUE=DATE:20270412
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 4. Back Mon 12 Apr 2027.
+DESCRIPTION:Term 4 ends Thu 25 Mar 2027. Jess is off for 17 days (2.5 weeks). Back Mon 12 Apr 2027 (start of Term 5).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2027-may-halfterm@termdates
-SUMMARY:🏖️ Off school – May Half Term
+SUMMARY:🏖️ Jess off school – May Half Term
 DTSTART;VALUE=DATE:20270529
 DTEND;VALUE=DATE:20270607
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 5. Back Mon 7 Jun 2027.
+DESCRIPTION:Term 5 ends Fri 28 May 2027. Jess is off for 9 days. Back Mon 7 Jun 2027 (start of Term 6).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2027-summer@termdates
-SUMMARY:🏖️ Off school – Summer Holidays
+SUMMARY:☀️ Jess off school – Summer Holidays
 DTSTART;VALUE=DATE:20270722
 DTEND;VALUE=DATE:20270831
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 6. Back Tue 31 Aug 2027.
+DESCRIPTION:Term 6 ends Wed 21 Jul 2027. Jess is off for around 6 weeks. Back Tue 31 Aug 2027 (start of the 2027/28 school year).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2027-oct-halfterm@termdates
-SUMMARY:🏖️ Off school – October Half Term
+SUMMARY:🏖️ Jess off school – October Half Term
 DTSTART;VALUE=DATE:20271016
 DTEND;VALUE=DATE:20271101
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 1 (2027/28). Back Mon 1 Nov 2027.
+DESCRIPTION:Term 1 (2027/28) ends Fri 15 Oct 2027. Jess is off for 16 days (2 weeks). Back Mon 1 Nov 2027 (start of Term 2).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2027-christmas@termdates
-SUMMARY:🏖️ Off school – Christmas Holidays
+SUMMARY:🎄 Jess off school – Christmas Holidays
 DTSTART;VALUE=DATE:20271218
 DTEND;VALUE=DATE:20280104
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 2 (2027/28). Back Tue 4 Jan 2028.
+DESCRIPTION:Term 2 (2027/28) ends Fri 17 Dec 2027. Jess is off for 17 days. Back Tue 4 Jan 2028 (start of Term 3).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2028-feb-halfterm@termdates
-SUMMARY:🏖️ Off school – February Half Term
+SUMMARY:🏖️ Jess off school – February Half Term
 DTSTART;VALUE=DATE:20280219
 DTEND;VALUE=DATE:20280228
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 3 (2027/28). Back Mon 28 Feb 2028.
+DESCRIPTION:Term 3 (2027/28) ends Fri 18 Feb 2028. Jess is off for 9 days. Back Mon 28 Feb 2028 (start of Term 4).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2028-easter@termdates
-SUMMARY:🏖️ Off school – Easter Holidays
+SUMMARY:🐣 Jess off school – Easter Holidays
 DTSTART;VALUE=DATE:20280408
 DTEND;VALUE=DATE:20280424
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 4 (2027/28). Back Mon 24 Apr 2028.
+DESCRIPTION:Term 4 (2027/28) ends Fri 7 Apr 2028. Jess is off for 16 days (2 weeks). Back Mon 24 Apr 2028 (start of Term 5).
 END:VEVENT
 BEGIN:VEVENT
 UID:ucc-holiday-2028-may-halfterm@termdates
-SUMMARY:🏖️ Off school – May Half Term
+SUMMARY:🏖️ Jess off school – May Half Term
 DTSTART;VALUE=DATE:20280527
 DTEND;VALUE=DATE:20280605
 TRANSP:TRANSPARENT
-DESCRIPTION:School closed after Term 5 (2027/28). Back Mon 5 Jun 2028.
+DESCRIPTION:Term 5 (2027/28) ends Fri 26 May 2028. Jess is off for 9 days. Back Mon 5 Jun 2028 (start of Term 6).
 END:VEVENT
 END:VCALENDAR
