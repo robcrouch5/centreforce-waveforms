@@ -1,0 +1,16 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//UCC Term Dates//Jess Current Holiday//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Jess – Summer Holiday 2026
+X-WR-CALDESC:The summer break Jess is in now
+BEGIN:VEVENT
+UID:ucc-holiday-2026-summer-now@termdates
+SUMMARY:☀️ Jess off school – Summer Holidays
+DTSTART;VALUE=DATE:20260718
+DTEND;VALUE=DATE:20260901
+TRANSP:TRANSPARENT
+DESCRIPTION:Summer term ended Fri 17 Jul 2026. Jess is off for around 6.5 weeks (45 days). Back Tue 1 Sep 2026 for the start of Term 1 of the 2026/27 school year.
+END:VEVENT
+END:VCALENDAR
