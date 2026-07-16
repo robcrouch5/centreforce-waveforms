@@ -1,0 +1,186 @@
+// Perk — data model
+//
+// Design notes:
+//  * Money is stored as integer minor units (pence/cents) to avoid float errors.
+//  * The model is multi-shop from day one: every menu item, order and loyalty
+//    account belongs to a Shop, so the platform can grow beyond one coffee shop.
+//  * SQLite is used for local development (zero setup). For production, switch
+//    `provider` to "postgresql" and point DATABASE_URL at a hosted database —
+//    the schema is written to port cleanly. SQLite has no native enum type, so
+//    status-like fields are strings validated in application code (see src/lib).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A coffee shop (or similar independent business) on the platform.
+model Shop {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  tagline     String?
+  description String?
+  address     String?
+  phone       String?
+  // Branding
+  currency    String   @default("GBP") // ISO 4217 code
+  accentColor String   @default("#6f4e37") // coffee brown
+
+  // Loyalty configuration (a simple, configurable stamp scheme).
+  // "Collect N stamps, get a reward." One stamp is earned per eligible item.
+  loyaltyStampsPerReward Int    @default(9)
+  loyaltyRewardLabel     String @default("Free regular drink")
+  // Points scheme: earn `pointsPerPound` points for every £1 spent.
+  pointsPerPound         Int    @default(10)
+
+  isOpen    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categories       Category[]
+  products         Product[]
+  orders           Order[]
+  loyaltyAccounts  LoyaltyAccount[]
+
+  @@index([slug])
+}
+
+/// A menu section, e.g. "Coffee", "Cold Drinks", "Food".
+model Category {
+  id        String  @id @default(cuid())
+  shopId    String
+  name      String
+  sortOrder Int     @default(0)
+
+  shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([shopId])
+}
+
+/// A single item that can be ordered.
+model Product {
+  id           String  @id @default(cuid())
+  shopId       String
+  categoryId   String?
+  name         String
+  description  String?
+  priceCents   Int     // price in minor units (pence)
+  imageEmoji   String? // lightweight placeholder art until real photos are added
+  available    Boolean @default(true)
+  // Whether buying this item earns a loyalty stamp (e.g. drinks yes, retail bag no).
+  earnsStamp   Boolean @default(true)
+  sortOrder    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop       Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  orderItems OrderItem[]
+
+  @@index([shopId])
+  @@index([categoryId])
+}
+
+/// A customer of the platform (may use more than one shop).
+model Customer {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders          Order[]
+  loyaltyAccounts LoyaltyAccount[]
+}
+
+/// A customer's loyalty balance at a specific shop.
+model LoyaltyAccount {
+  id         String @id @default(cuid())
+  customerId String
+  shopId     String
+  stamps     Int    @default(0) // progress toward the next reward
+  points     Int    @default(0) // lifetime spend points balance
+  rewards    Int    @default(0) // unredeemed rewards earned
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer     Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  shop         Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@unique([customerId, shopId])
+  @@index([shopId])
+}
+
+/// An immutable audit line describing a change to a loyalty account.
+model LoyaltyTransaction {
+  id        String  @id @default(cuid())
+  accountId String
+  orderId   String?
+  // What changed
+  stampsDelta Int    @default(0)
+  pointsDelta Int    @default(0)
+  reason      String // e.g. "order", "reward-earned", "reward-redeemed", "manual"
+  createdAt   DateTime @default(now())
+
+  account LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  order   Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([accountId])
+}
+
+/// A collection (pre-)order.
+model Order {
+  id          String  @id @default(cuid())
+  shopId      String
+  customerId  String
+  // Human-friendly short code shown to staff/customer, e.g. "A3F9".
+  code        String  @unique
+  // Lifecycle: "pending" -> "confirmed" -> "preparing" -> "ready" -> "collected"
+  //            (or "cancelled" at any point). Validated in application code.
+  status      String  @default("pending")
+  // When the customer wants to collect. Null = "as soon as possible".
+  pickupAt    DateTime?
+  notes       String?
+  subtotalCents Int
+  // Snapshot of loyalty earned by this order (for display on the receipt).
+  stampsEarned Int    @default(0)
+  pointsEarned Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop                Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer            Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items               OrderItem[]
+  loyaltyTransactions LoyaltyTransaction[]
+
+  @@index([shopId])
+  @@index([customerId])
+  @@index([status])
+}
+
+/// A line on an order. Product name/price are snapshotted so history is stable
+/// even if the menu changes later.
+model OrderItem {
+  id             String @id @default(cuid())
+  orderId        String
+  productId      String?
+  nameSnapshot   String
+  priceCentsSnapshot Int
+  quantity       Int    @default(1)
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+}
