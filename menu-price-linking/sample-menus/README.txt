@@ -1,3 +1,5 @@
-Drop your .psd menu files in this folder (or point the script at wherever they live).
-Each price on a menu should be a text layer named to match a "key" in ../prices.csv,
-e.g. price_pint_lager
+Drop your 4 menu .psd files here (or point the script anywhere).
+Name them so each contains its board tag, e.g.
+  Menu_Normal_Vertical.psd   Menu_Normal_Horizontal.psd
+  Menu_VIP_Vertical.psd      Menu_VIP_Horizontal.psd
+Name each price text layer to match a Key in LAYER-NAMES.md.

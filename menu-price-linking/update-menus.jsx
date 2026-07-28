@@ -10,15 +10,20 @@
  *   masters are left untouched unless you set SAVE_PSD = true below.
  *
  * HOW TO RUN (no coding needed)
- *   1. In Excel, keep your master as prices.xlsx. When ready:
- *      File > Save As > "CSV UTF-8 (.csv)"  and overwrite prices.csv.
- *   2. In each menu .psd, rename the price text layers to match the "key"
- *      column (double-click the layer name in the Layers panel), e.g.
- *      the pint-of-lager price layer becomes  lager_pint
+ *   1. In your Soultown workbook, edit prices on the Menu tab as normal. Then
+ *      open the "Photoshop" tab and do File > Save As > "CSV UTF-8 (.csv)",
+ *      overwriting menu-data.csv.
+ *   2. In each menu .psd, rename each price text layer to match the "Key"
+ *      column (double-click the layer name in the Layers panel), e.g. the
+ *      pint-of-lager price layer becomes  normal_spitfire_lager_pint
  *   3. In Photoshop:  File > Scripts > Browse...  and pick this file.
- *   4. It asks for prices.csv, then the folder of .psd menus. Look in /output.
+ *   4. It asks for menu-data.csv, then the folder of .psd menus. Look in /output.
  *
- * Re-run any time a price changes. Same key on many menus = they all update.
+ * The "File" column routes rows to the right board: a row only applies to a
+ * PSD whose filename CONTAINS its File tag (e.g. "normal" or "vip"). So name
+ * your files like  Menu_Normal_Vertical.psd  /  Menu_VIP_Horizontal.psd .
+ * The horizontal and vertical version of a board share the same keys, so one
+ * price change updates both at once.
  * ---------------------------------------------------------------------------
  */
 
@@ -38,8 +43,8 @@ function main() {
     var csvFile = File.openDialog("Select your prices.csv (exported from Excel)", "*.csv");
     if (!csvFile) return;
 
-    var records = readCsv(csvFile);          // [ {key, value, type} ]
-    if (records.length === 0) { alert("No rows found in that CSV. Expecting columns including 'key' and 'price'."); return; }
+    var records = readCsv(csvFile);          // [ {key, value, type, file} ]
+    if (records.length === 0) { alert("No rows found in that CSV. Expecting columns including 'Key' and 'Price' (and optionally 'File')."); return; }
 
     var folder = Folder.selectDialog("Select the folder containing your .psd menu files");
     if (!folder) return;
@@ -60,9 +65,20 @@ function main() {
 
     for (var i = 0; i < psds.length; i++) {
         var doc = app.open(psds[i]);
-        var changed = applyRecords(doc, records, usedKeys);
-
         var base = psds[i].name.replace(/\.psd$/i, "");
+
+        // Only apply rows whose File tag is blank, "all", or is contained in
+        // this PSD's filename (so "vip" rows skip the normal boards, etc.).
+        var baseLower = base.toLowerCase();
+        var forThisPsd = [];
+        for (var m = 0; m < records.length; m++) {
+            var ftag = records[m].file;
+            if (ftag === "" || ftag === "all" || baseLower.indexOf(ftag) >= 0) {
+                forThisPsd.push(records[m]);
+            }
+        }
+        var changed = applyRecords(doc, forThisPsd, usedKeys);
+
         if (EXPORT_PNG) exportImage(doc, new File(outFolder.fsName + "/" + base + ".png"), "png");
         if (EXPORT_JPG) exportImage(doc, new File(outFolder.fsName + "/" + base + ".jpg"), "jpg");
         if (EXPORT_PDF) exportPdf(doc, new File(outFolder.fsName + "/" + base + ".pdf"));
@@ -139,20 +155,21 @@ function readCsv(file) {
 
     var lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
     var out = [];
-    var keyIdx = 0, valIdx = 1, typeIdx = -1, headerDone = false;
+    var keyIdx = 0, valIdx = 1, typeIdx = -1, fileIdx = -1, headerDone = false;
 
     for (var i = 0; i < lines.length; i++) {
         if (trim(lines[i]) === "") continue;
         var cols = parseCsvLine(lines[i]);
 
         if (!headerDone) {
-            var looksLikeHeader = /key|name|value|price|type/i.test(lines[i]);
+            var looksLikeHeader = /key|name|value|price|type|file/i.test(lines[i]);
             if (looksLikeHeader) {
                 for (var c = 0; c < cols.length; c++) {
                     var h = trim(cols[c]).toLowerCase();
                     if (h.indexOf("key") === 0 || h === "name" || h === "id") keyIdx = c;
                     if (h.indexOf("price") === 0 || h.indexOf("value") === 0 || h === "text") valIdx = c;
                     if (h.indexOf("type") === 0) typeIdx = c;
+                    if (h.indexOf("file") === 0 || h.indexOf("menu") === 0 || h.indexOf("board") === 0) fileIdx = c;
                 }
                 headerDone = true;
                 continue;
@@ -166,7 +183,8 @@ function readCsv(file) {
             var val  = (cols.length > valIdx)  ? trim(cols[valIdx])  : "";
             var type = (typeIdx >= 0 && cols.length > typeIdx) ? trim(cols[typeIdx]).toLowerCase() : "text";
             if (type !== "show") type = "text";
-            out.push({ key: key, value: val, type: type });
+            var file = (fileIdx >= 0 && cols.length > fileIdx) ? trim(cols[fileIdx]).toLowerCase() : "";
+            out.push({ key: key, value: val, type: type, file: file });
         }
     }
     return out;

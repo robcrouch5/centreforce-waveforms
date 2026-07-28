@@ -1,0 +1,111 @@
+﻿File,Key (Photoshop layer name),Product,Size,Price
+normal,normal_spitfire_lager_pint,Spitfire Lager,Pint,£7.90
+normal,normal_spitfire_lager_half,Spitfire Lager,Half,£4
+normal,normal_orchard_view_pint,Orchard View,Pint,£7.90
+normal,normal_orchard_view_half,Orchard View,Half,£4
+normal,normal_smirnoff_vodka_25ml,Smirnoff Vodka,25ml,£8
+normal,normal_smirnoff_vodka_50ml,Smirnoff Vodka,50ml,£13
+normal,normal_gordan_s_gin_25ml,Gordan's Gin,25ml,£8
+normal,normal_gordan_s_gin_50ml,Gordan's Gin,50ml,£13
+normal,normal_gordan_s_pink_gin_25ml,Gordan's Pink Gin,25ml,£8
+normal,normal_gordan_s_pink_gin_50ml,Gordan's Pink Gin,50ml,£13
+normal,normal_captain_morgan_s_spiced_25ml,Captain Morgan's Spiced,25ml,£8
+normal,normal_captain_morgan_s_spiced_50ml,Captain Morgan's Spiced,50ml,£13
+normal,normal_jack_danial_s_25ml,Jack Danial's,25ml,£8
+normal,normal_jack_danial_s_50ml,Jack Danial's,50ml,£13
+normal,normal_tom_savano_moscow_mule_200ml,Tom Savano Moscow Mule,200ml,£12
+normal,normal_tom_savano_hot_honey_margarita_125ml,Tom Savano Hot Honey Margarita,125ml,£12
+normal,normal_tom_savano_caipirinha_125ml,Tom Savano Caipirinha,125ml,£12
+normal,normal_hooch_lemon_440ml,Hooch Lemon,440ml,£7
+normal,normal_hooch_raspberry_440ml,Hooch Raspberry,440ml,£7
+normal,normal_hooch_tropical_440ml,Hooch Tropical,440ml,£7
+normal,normal_hooch_cherry_440ml,Hooch Cherry,440ml,£7
+normal,normal_hooch_peach_440ml,Hooch Peach,440ml,£7
+normal,normal_vodka_red_bull_25ml,Vodka Red Bull,25ml,£10.50
+normal,normal_vodka_red_bull_50ml,Vodka Red Bull,50ml,£15.50
+normal,normal_tequila_peach_bull_25ml,Tequila Peach Bull,25ml,£10.50
+normal,normal_tequila_peach_bull_50ml,Tequila Peach Bull,50ml,£15.50
+normal,normal_citrus_lime_bull_25ml,Citrus Lime Bull,25ml,£10.50
+normal,normal_citrus_lime_bull_50ml,Citrus Lime Bull,50ml,£15.50
+normal,normal_jagermeister_25ml,Jagermeister,25ml,£6
+normal,normal_jagerbomb_25ml,Jagerbomb,25ml,£7.50
+normal,normal_tequila_creams_25ml,Tequila Creams,25ml,£6
+normal,normal_tequila_creams_3_4_15,Tequila Creams,3-4-£15,£15
+normal,normal_richelieu_rose_bottle,Richelieu Rose,Bottle,£33
+normal,normal_richelieu_rose_250ml,Richelieu Rose,250ml,£11.50
+normal,normal_richelieu_rose_175ml,Richelieu Rose,175ml,£8.20
+normal,normal_richelieu_rose_125ml,Richelieu Rose,125ml,£6
+normal,normal_richelieu_white_bottle,Richelieu White,Bottle,£33
+normal,normal_richelieu_white_250ml,Richelieu White,250ml,£11.50
+normal,normal_richelieu_white_175ml,Richelieu White,175ml,£8.20
+normal,normal_richelieu_white_125ml,Richelieu White,125ml,£6
+normal,normal_prosecco_bottle,Prosecco,Bottle,£35
+normal,normal_prosecco_175ml,Prosecco,175ml,£8.50
+normal,normal_prosecco_125ml,Prosecco,125ml,£6.20
+normal,normal_carafe_deposit_refund_needed_bottle,Carafe Deposit (+refund needed),Bottle,£10
+normal,normal_water_500ml_can,Water 500ml,Can,£2.50
+normal,normal_can_coca_cola_zero_330ml_can,CAN Coca Cola Zero 330ml,Can,£3.20
+normal,normal_can_lemonade_330ml_can,CAN Lemonade 330ml Can,Can,£3.20
+normal,normal_schweppes_tonic_1l_pet_pint,Schweppes Tonic 1L PET,Pint,£4
+normal,normal_schweppes_tonic_1l_pet_half,Schweppes Tonic 1L PET,Half,£2
+normal,normal_schweppes_soda_1l_pint,Schweppes Soda 1L,Pint,£4
+normal,normal_schweppes_soda_1l_half,Schweppes Soda 1L,Half,£2
+normal,normal_red_bull_energy_drink_can,Red Bull Energy Drink,Can,£4.50
+normal,normal_red_bull_sugarfree_can,Red Bull Sugarfree,Can,£4.50
+normal,normal_red_bull_peach_edition_can,Red Bull Peach Edition,Can,£4.50
+normal,normal_red_bull_citrus_zest_edition_can,Red Bull Citrus Zest Edition,Can,£4.50
+vip,vip_spitfire_lager_pint,Spitfire Lager,Pint,£7.90
+vip,vip_spitfire_lager_half,Spitfire Lager,Half,£4
+vip,vip_orchard_view_pint,Orchard View,Pint,£7.90
+vip,vip_orchard_view_half,Orchard View,Half,£4
+vip,vip_smirnoff_vodka_25ml,Smirnoff Vodka,25ml,£8
+vip,vip_smirnoff_vodka_50ml,Smirnoff Vodka,50ml,£13
+vip,vip_gordan_s_gin_25ml,Gordan's Gin,25ml,£8
+vip,vip_gordan_s_gin_50ml,Gordan's Gin,50ml,£13
+vip,vip_gordan_s_pink_gin_25ml,Gordan's Pink Gin,25ml,£8
+vip,vip_gordan_s_pink_gin_50ml,Gordan's Pink Gin,50ml,£13
+vip,vip_captain_morgan_s_spiced_25ml,Captain Morgan's Spiced,25ml,£8
+vip,vip_captain_morgan_s_spiced_50ml,Captain Morgan's Spiced,50ml,£13
+vip,vip_jack_danial_s_25ml,Jack Danial's,25ml,£8
+vip,vip_jack_danial_s_50ml,Jack Danial's,50ml,£13
+vip,vip_tom_savano_moscow_mule_200ml,Tom Savano Moscow Mule,200ml,£12
+vip,vip_tom_savano_hot_honey_margarita_125ml,Tom Savano Hot Honey Margarita,125ml,£12
+vip,vip_tom_savano_caipirinha_125ml,Tom Savano Caipirinha,125ml,£12
+vip,vip_hooch_lemon_440ml,Hooch Lemon,440ml,£7
+vip,vip_hooch_raspberry_440ml,Hooch Raspberry,440ml,£7
+vip,vip_hooch_tropical_440ml,Hooch Tropical,440ml,£7
+vip,vip_hooch_cherry_440ml,Hooch Cherry,440ml,£7
+vip,vip_hooch_peach_440ml,Hooch Peach,440ml,£7
+vip,vip_vodka_red_bull_25ml,Vodka Red Bull,25ml,£10.50
+vip,vip_vodka_red_bull_50ml,Vodka Red Bull,50ml,£15.50
+vip,vip_tequila_peach_bull_25ml,Tequila Peach Bull,25ml,£10.50
+vip,vip_tequila_peach_bull_50ml,Tequila Peach Bull,50ml,£15.50
+vip,vip_citrus_lime_bull_25ml,Citrus Lime Bull,25ml,£10.50
+vip,vip_citrus_lime_bull_50ml,Citrus Lime Bull,50ml,£15.50
+vip,vip_jagermeister_25ml,Jagermeister,25ml,£6
+vip,vip_jagerbomb_25ml,Jagerbomb,25ml,£7.50
+vip,vip_tequila_creams_25ml,Tequila Creams,25ml,£6
+vip,vip_tequila_creams_3_4_15,Tequila Creams,3-4-£15,£15
+vip,vip_richelieu_rose_bottle,Richelieu Rose,Bottle,£33
+vip,vip_richelieu_rose_250ml,Richelieu Rose,250ml,£11.50
+vip,vip_richelieu_rose_175ml,Richelieu Rose,175ml,£8.20
+vip,vip_richelieu_rose_125ml,Richelieu Rose,125ml,£6
+vip,vip_richelieu_white_bottle,Richelieu White,Bottle,£33
+vip,vip_richelieu_white_250ml,Richelieu White,250ml,£11.50
+vip,vip_richelieu_white_175ml,Richelieu White,175ml,£8.20
+vip,vip_richelieu_white_125ml,Richelieu White,125ml,£6
+vip,vip_prosecco_bottle,Prosecco,Bottle,£35
+vip,vip_prosecco_175ml,Prosecco,175ml,£8.50
+vip,vip_prosecco_125ml,Prosecco,125ml,£6.20
+vip,vip_carafe_deposit_refund_needed_bottle,Carafe Deposit (+refund needed),Bottle,£10
+vip,vip_water_500ml_can,Water 500ml,Can,£2.50
+vip,vip_can_coca_cola_zero_330ml_can,CAN Coca Cola Zero 330ml,Can,£3.20
+vip,vip_can_lemonade_330ml_can,CAN Lemonade 330ml Can,Can,£3.20
+vip,vip_schweppes_tonic_1l_pet_pint,Schweppes Tonic 1L PET,Pint,£4
+vip,vip_schweppes_tonic_1l_pet_half,Schweppes Tonic 1L PET,Half,£2
+vip,vip_schweppes_soda_1l_pint,Schweppes Soda 1L,Pint,£4
+vip,vip_schweppes_soda_1l_half,Schweppes Soda 1L,Half,£2
+vip,vip_red_bull_energy_drink_can,Red Bull Energy Drink,Can,£4.50
+vip,vip_red_bull_sugarfree_can,Red Bull Sugarfree,Can,£4.50
+vip,vip_red_bull_peach_edition_can,Red Bull Peach Edition,Can,£4.50
+vip,vip_red_bull_citrus_zest_edition_can,Red Bull Citrus Zest Edition,Can,£4.50
