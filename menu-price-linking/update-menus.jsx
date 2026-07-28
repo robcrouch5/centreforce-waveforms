@@ -3,46 +3,44 @@
  * ---------------------------------------------------------------------------
  * WHAT IT DOES
  *   Reads a central price list (prices.csv, exported from your Excel master),
- *   opens every .psd in a folder you choose, finds the text layers whose NAME
- *   matches a key in the spreadsheet, updates the price/text, and exports a
- *   print-ready PDF + a PNG preview of each menu. Your .psd files are left
- *   untouched (masters stay editable) unless you tick "save PSD" below.
+ *   opens every .psd in a folder you choose, and for each one:
+ *     - sets the PRICE/TEXT of any layer whose NAME matches a "key" in the sheet
+ *     - optionally SHOWS/HIDES a layer or row (for items that come and go)
+ *   Then exports an image (PNG/JPG) and/or a print PDF of each menu. Your .psd
+ *   masters are left untouched unless you set SAVE_PSD = true below.
  *
  * HOW TO RUN (no coding needed)
- *   1. In Excel, keep your master as prices.xlsx. When ready, File > Save As >
- *      "CSV UTF-8 (.csv)" and save it as prices.csv.
+ *   1. In Excel, keep your master as prices.xlsx. When ready:
+ *      File > Save As > "CSV UTF-8 (.csv)"  and overwrite prices.csv.
  *   2. In each menu .psd, rename the price text layers to match the "key"
- *      column, e.g. a layer showing the lager price is named  price_pint_lager
- *      (double-click the layer name in the Layers panel to rename).
+ *      column (double-click the layer name in the Layers panel), e.g.
+ *      the pint-of-lager price layer becomes  lager_pint
  *   3. In Photoshop:  File > Scripts > Browse...  and pick this file.
- *   4. It asks for your prices.csv, then the folder of .psd menus. Done — look
- *      in the /output folder next to your menus.
+ *   4. It asks for prices.csv, then the folder of .psd menus. Look in /output.
  *
- * Re-run it any time a price changes. That's the whole workflow.
+ * Re-run any time a price changes. Same key on many menus = they all update.
  * ---------------------------------------------------------------------------
  */
 
 #target photoshop
 
 // ===== Settings you can tweak ==============================================
-var EXPORT_PDF     = true;   // print-ready PDF per menu
-var EXPORT_PNG     = true;   // on-screen preview per menu
-var PNG_MAX_PX     = 2000;   // longest edge of the PNG preview (keeps files small)
+var EXPORT_PNG     = true;   // on-screen image per menu (screens / social / LED)
+var EXPORT_JPG     = false;  // JPG as well (smaller files, good for LED walls)
+var EXPORT_PDF     = false;  // print-ready PDF (turn on if a printer needs it)
+var IMG_MAX_PX     = 2000;   // longest edge of the exported image
+var JPG_QUALITY    = 10;     // 1-12 (JPG only)
 var SAVE_PSD       = false;  // true = also overwrite the .psd with new prices
-var REPORT_MISSING = true;   // warn about keys in the sheet that no layer used
+var REPORT_MISSING = true;   // list keys that never matched a layer (catches typos)
 // ===========================================================================
 
 function main() {
-    // ---- 1. Pick the spreadsheet -----------------------------------------
     var csvFile = File.openDialog("Select your prices.csv (exported from Excel)", "*.csv");
     if (!csvFile) return;
 
-    var prices = readCsv(csvFile);           // { key: value }
-    var keyCount = 0, k;
-    for (k in prices) { if (prices.hasOwnProperty(k)) keyCount++; }
-    if (keyCount === 0) { alert("No rows found in that CSV. Expecting columns: key,value"); return; }
+    var records = readCsv(csvFile);          // [ {key, value, type} ]
+    if (records.length === 0) { alert("No rows found in that CSV. Expecting columns including 'key' and 'price'."); return; }
 
-    // ---- 2. Pick the folder of menus -------------------------------------
     var folder = Folder.selectDialog("Select the folder containing your .psd menu files");
     if (!folder) return;
 
@@ -54,76 +52,84 @@ function main() {
     var outFolder = new Folder(folder.fsName + "/output");
     if (!outFolder.exists) outFolder.create();
 
-    // ---- 3. Process every menu -------------------------------------------
-    var usedKeys = {};                       // which keys actually landed on a layer
-    var summary = [];
     var savedUnits = app.preferences.rulerUnits;
     app.preferences.rulerUnits = Units.PIXELS;
     app.displayDialogs = DialogModes.NO;
 
+    var usedKeys = {}, summary = [];
+
     for (var i = 0; i < psds.length; i++) {
         var doc = app.open(psds[i]);
-        var changed = applyPrices(doc, prices, usedKeys);
+        var changed = applyRecords(doc, records, usedKeys);
 
         var base = psds[i].name.replace(/\.psd$/i, "");
+        if (EXPORT_PNG) exportImage(doc, new File(outFolder.fsName + "/" + base + ".png"), "png");
+        if (EXPORT_JPG) exportImage(doc, new File(outFolder.fsName + "/" + base + ".jpg"), "jpg");
         if (EXPORT_PDF) exportPdf(doc, new File(outFolder.fsName + "/" + base + ".pdf"));
-        if (EXPORT_PNG) exportPng(doc, new File(outFolder.fsName + "/" + base + ".png"));
 
         if (SAVE_PSD) doc.save();
         doc.close(SAVE_PSD ? SaveOptions.SAVECHANGES : SaveOptions.DONOTSAVECHANGES);
 
-        summary.push(base + ":  " + changed + " price(s) updated");
+        summary.push(base + ":  " + changed.text + " price(s), " + changed.vis + " show/hide");
     }
 
     app.preferences.rulerUnits = savedUnits;
 
-    // ---- 4. Report --------------------------------------------------------
     var msg = "Done. " + psds.length + " menu(s) processed.\n\n" + summary.join("\n");
     if (REPORT_MISSING) {
         var unused = [];
-        for (k in prices) {
-            if (prices.hasOwnProperty(k) && !usedKeys[k]) unused.push(k);
+        for (var j = 0; j < records.length; j++) {
+            if (!usedKeys[records[j].key]) unused.push(records[j].key);
         }
         if (unused.length) {
-            msg += "\n\nNot found on any menu (check the layer names match these keys):\n  " + unused.join("\n  ");
+            msg += "\n\nThese keys never matched a layer on any menu (usually a layer-name typo):\n  " + unused.join("\n  ");
         }
     }
     alert(msg);
 }
 
-// Walk every layer (including inside groups) and set text where the layer
-// name matches a key in the price list.
-function applyPrices(doc, prices, usedKeys) {
-    var count = 0;
+// Apply every record to one document.
+//  - type "text" (default): set the contents of the text layer named <key>
+//  - type "show":           show/hide the layer OR group named <key>
+function applyRecords(doc, records, usedKeys) {
+    var textMap = {}, showMap = {}, k;
+    for (var i = 0; i < records.length; i++) {
+        var r = records[i];
+        if (r.type === "show") showMap[r.key] = parseBool(r.value);
+        else textMap[r.key] = r.value;
+    }
+
+    var counts = { text: 0, vis: 0 };
     walk(doc, function (layer) {
-        if (layer.kind === LayerKind.TEXT) {
-            var name = trim(layer.name);
-            if (prices.hasOwnProperty(name)) {
-                try {
-                    layer.textItem.contents = prices[name];
-                    usedKeys[name] = true;
-                    count++;
-                } catch (e) { /* locked/odd layer — skip */ }
-            }
+        var name = trim(layer.name);
+        if (layer.kind === LayerKind.TEXT && textMap.hasOwnProperty(name)) {
+            try { layer.textItem.contents = textMap[name]; usedKeys[name] = true; counts.text++; } catch (e) {}
+        }
+        if (showMap.hasOwnProperty(name)) {
+            try { layer.visible = showMap[name]; usedKeys[name] = true; counts.vis++; } catch (e2) {}
         }
     });
-    return count;
+    return counts;
 }
 
+// Visit every layer, descending into groups.
 function walk(container, fn) {
     var layers = container.layers;
     for (var i = 0; i < layers.length; i++) {
         var layer = layers[i];
-        if (layer.typename === "LayerSet") {
-            walk(layer, fn);
-        } else {
-            fn(layer);
-        }
+        fn(layer);
+        if (layer.typename === "LayerSet") walk(layer, fn);
     }
 }
 
-// ---- CSV reader: expects a header row with columns key,value ---------------
-// Tolerates quoted fields, £/$ signs, blank lines and a UTF-8 BOM.
+function parseBool(v) {
+    var s = trim(String(v)).toLowerCase();
+    return (s === "true" || s === "yes" || s === "y" || s === "1" || s === "on" || s === "show");
+}
+
+// ---- CSV reader -----------------------------------------------------------
+// Finds the key / price / type columns by their header names, so extra
+// columns (Category, Item, Notes...) in your spreadsheet are ignored.
 function readCsv(file) {
     file.encoding = "UTF-8";
     file.open("r");
@@ -132,33 +138,38 @@ function readCsv(file) {
     if (text.length && text.charCodeAt(0) === 0xFEFF) text = text.substring(1); // strip BOM
 
     var lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-    var map = {};
-    var keyIdx = 0, valIdx = 1, headerDone = false;
+    var out = [];
+    var keyIdx = 0, valIdx = 1, typeIdx = -1, headerDone = false;
 
     for (var i = 0; i < lines.length; i++) {
         if (trim(lines[i]) === "") continue;
         var cols = parseCsvLine(lines[i]);
 
         if (!headerDone) {
-            // Locate the key/value columns by header name if present.
-            for (var c = 0; c < cols.length; c++) {
-                var h = trim(cols[c]).toLowerCase();
-                if (h === "key" || h === "name" || h === "id") keyIdx = c;
-                if (h === "value" || h === "price" || h === "text") valIdx = c;
+            var looksLikeHeader = /key|name|value|price|type/i.test(lines[i]);
+            if (looksLikeHeader) {
+                for (var c = 0; c < cols.length; c++) {
+                    var h = trim(cols[c]).toLowerCase();
+                    if (h.indexOf("key") === 0 || h === "name" || h === "id") keyIdx = c;
+                    if (h.indexOf("price") === 0 || h.indexOf("value") === 0 || h === "text") valIdx = c;
+                    if (h.indexOf("type") === 0) typeIdx = c;
+                }
+                headerDone = true;
+                continue;
             }
-            headerDone = true;
-            // If the first row wasn't actually a header, treat it as data too.
-            var looksLikeHeader = /key|name|id|value|price|text/i.test(lines[i]);
-            if (looksLikeHeader) continue;
+            headerDone = true; // first row is data, use default column order
         }
 
         if (cols.length > keyIdx) {
             var key = trim(cols[keyIdx]);
-            var val = (cols.length > valIdx) ? trim(cols[valIdx]) : "";
-            if (key !== "") map[key] = val;
+            if (key === "") continue;              // skip category/blank rows
+            var val  = (cols.length > valIdx)  ? trim(cols[valIdx])  : "";
+            var type = (typeIdx >= 0 && cols.length > typeIdx) ? trim(cols[typeIdx]).toLowerCase() : "text";
+            if (type !== "show") type = "text";
+            out.push({ key: key, value: val, type: type });
         }
     }
-    return map;
+    return out;
 }
 
 function parseCsvLine(line) {
@@ -183,6 +194,21 @@ function parseCsvLine(line) {
 function trim(s) { return String(s).replace(/^\s+/, "").replace(/\s+$/, ""); }
 
 // ---- Exporters ------------------------------------------------------------
+function exportImage(doc, outFile, kind) {
+    var dup = doc.duplicate();
+    dup.flatten();
+    var longest = Math.max(dup.width.as("px"), dup.height.as("px"));
+    if (longest > IMG_MAX_PX) {
+        var scale = (IMG_MAX_PX / longest) * 100;
+        dup.resizeImage(UnitValue(scale, "%"), null, null, ResampleMethod.BICUBICSHARPER);
+    }
+    var opts;
+    if (kind === "jpg") { opts = new JPEGSaveOptions(); opts.quality = JPG_QUALITY; }
+    else               { opts = new PNGSaveOptions();  opts.compression = 6; }
+    dup.saveAs(outFile, opts, true, Extension.LOWERCASE);
+    dup.close(SaveOptions.DONOTSAVECHANGES);
+}
+
 function exportPdf(doc, outFile) {
     var opts = new PDFSaveOptions();
     opts.PDFStandard = PDFStandard.NONE;
@@ -190,21 +216,6 @@ function exportPdf(doc, outFile) {
     opts.embedColorProfile = true;
     opts.view = false;
     doc.saveAs(outFile, opts, true, Extension.LOWERCASE);
-}
-
-function exportPng(doc, outFile) {
-    // Work on a flattened duplicate so the original stays intact.
-    var dup = doc.duplicate();
-    dup.flatten();
-    var longest = Math.max(dup.width.as("px"), dup.height.as("px"));
-    if (longest > PNG_MAX_PX) {
-        var scale = (PNG_MAX_PX / longest) * 100;
-        dup.resizeImage(UnitValue(scale, "%"), null, null, ResampleMethod.BICUBICSHARPER);
-    }
-    var opts = new PNGSaveOptions();
-    opts.compression = 6;
-    dup.saveAs(outFile, opts, true, Extension.LOWERCASE);
-    dup.close(SaveOptions.DONOTSAVECHANGES);
 }
 
 main();
