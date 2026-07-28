@@ -1,0 +1,17 @@
+key,value
+price_pint_lager,£6.50
+price_pint_cider,£6.00
+price_pint_ale,£6.50
+price_half_lager,£3.50
+price_bottle_beer,£5.50
+price_house_wine_glass,£7.00
+price_house_wine_bottle,£26.00
+price_prosecco_glass,£8.00
+price_single_spirit_mixer,£6.50
+price_double_spirit_mixer,£9.00
+price_soft_drink,£3.00
+price_water,£2.50
+price_cocktail_house,£10.00
+price_cocktail_signature,£12.00
+label_bar_name,Main Stage Bar
+note_card_only,Card payments only
