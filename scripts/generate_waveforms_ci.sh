@@ -86,7 +86,7 @@ mapfile -t URLS < <(sort -u /tmp/links.txt)
 
 total=${#URLS[@]}
 echo "Found $total recordings"
-gen=0; skip=0; fail=0; i=0
+gen=0; skip=0; fail=0; missing=0; i=0
 
 for url in "${URLS[@]}"; do
   i=$((i+1))
@@ -95,8 +95,16 @@ for url in "${URLS[@]}"; do
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -I "$WAVE_BASE/$enc.json")
   if [ "$code" = "200" ]; then skip=$((skip+1)); continue; fi
   echo "[$i/$total] generating: $name"
-  if ! curl -fsSL --retry 4 --retry-delay 3 --retry-all-errors -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" "$url" -o /tmp/cf.mp3; then
-    echo "  ❌ download failed"; fail=$((fail+1)); continue
+  # Download the source recording. A 404 means the recording was renamed or removed
+  # on the host (benign — common for old / odd-named files). Count it as "missing",
+  # NOT a failure, so a single stale listen-back link can't fail the whole
+  # idempotent sweep (and spam failure emails). `--retry` won't retry a 404.
+  dl=$(curl -sSL --retry 2 --retry-delay 3 -A "Mozilla/5.0 (compatible; CentreforceWaveformBot/1.0)" -w '%{http_code}' -o /tmp/cf.mp3 "$url" 2>/dev/null)
+  if [ "$dl" = "404" ]; then
+    echo "  ⚠️ source missing (HTTP 404) — skipping"; missing=$((missing+1)); rm -f /tmp/cf.mp3; continue
+  fi
+  if [ "$dl" != "200" ] || [ ! -s /tmp/cf.mp3 ]; then
+    echo "  ❌ download failed (HTTP $dl)"; fail=$((fail+1)); rm -f /tmp/cf.mp3; continue
   fi
   if ! audiowaveform -i /tmp/cf.mp3 -o "/tmp/$name.json" --pixels-per-second 8 -b 8 >/dev/null 2>&1; then
     echo "  ❌ audiowaveform failed"; fail=$((fail+1)); rm -f /tmp/cf.mp3; continue
@@ -110,13 +118,13 @@ for url in "${URLS[@]}"; do
   rm -f "/tmp/$name.json"
 done
 
-echo "Done: generated=$gen skipped=$skip failed=$fail (of $total)"
-# A few unreadable / missing / odd-named recordings must NOT fail the whole
-# scheduled, idempotent run. But if we generated NOTHING and something failed,
-# that's systemic (e.g. uploads broken) — surface it.
+echo "Done: generated=$gen skipped=$skip missing=$missing failed=$fail (of $total)"
+# Missing source recordings (404) are benign — a recording may have been renamed
+# or removed — and must NEVER fail this idempotent sweep. Only a REAL failure
+# (upload / host / audiowaveform) with nothing generated is systemic.
 if [ "$gen" -eq 0 ] && [ "$fail" -gt 0 ]; then
-  echo "❌ Generated nothing and $fail failed — systemic problem (upload / host / API)."
+  echo "❌ Generated nothing and $fail real failure(s) — systemic problem (upload / host / audiowaveform)."
   exit 1
 fi
-echo "✅ Run completed (any per-file failures will retry next run)."
+echo "✅ Run completed (missing=$missing benign; any real per-file failures retry next run)."
 exit 0
